@@ -824,6 +824,40 @@ class="member-panel">
 
 </div>
 
+<!-- =========================
+블랙리스트 관리
+========================= -->
+
+<div id="blacklistModal" class="modal" style="display:none;">
+
+    <div class="modal-content">
+
+        <h2>블랙리스트 관리</h2>
+
+        <input
+            id="blacklistInput"
+            placeholder="차단할 아이디">
+
+        <button id="addBlacklist">
+            추가
+        </button>
+
+        <button id="removeBlacklist">
+            삭제
+        </button>
+
+        <hr>
+
+        <ul id="blacklistList"></ul>
+
+        <button id="closeBlacklist">
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
 <script>
 
 const socket=io();
@@ -1912,28 +1946,5 @@ async function refreshBlacklist(){
 }
 
 </script>
-
-</button>
-
-<button id="removeBlacklist">
-
-삭제
-
-</button>
-
-<hr>
-
-<ul id="blacklistList"></ul>
-
-<button id="closeBlacklist">
-
-닫기
-
-</button>
-
-</div>
-
-</div>
-
 </body>
 </html>
