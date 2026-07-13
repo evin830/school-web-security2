@@ -377,7 +377,7 @@ io.on("connection",(socket)=>{
     socket.on("set nickname",(data)=>{
 
         const username=data.username;
-        let nickname=data.nickname.trim();
+        const nickname=data.nickname;
     
         if(isBlacklisted(username)){
 
@@ -389,6 +389,9 @@ io.on("connection",(socket)=>{
             return;
 
         }
+
+        const nickname=name.trim();
+    
     
         if(!nickname){
     
@@ -430,25 +433,11 @@ io.on("connection",(socket)=>{
     
         }
     
-        if(isBlacklisted(socket.username)){
-
-            socket.emit(
-
-                "nickname fail",
-
-                "차단된 계정입니다."
-
-            );
-
-            return;
-
-        }
-    
         users[socket.id]={
         
-            username:socket.username,
+            username: username,
 
-            name:nickname,
+            name: nickname,
 
             room:"public"
         
