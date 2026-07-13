@@ -7,379 +7,843 @@ const fs = require("fs");
 const app = express();
 const server = http.createServer(app);
 
-
-
-
-/* =========================
-   PORT (중요: 배포용 필수)
-========================= */
 const PORT = process.env.PORT || 3000;
 
-/* =========================
-   Socket.IO (배포 안전 설정)
-========================= */
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
+const io = new Server(server,{
+    cors:{
+        origin:"*",
+        methods:["GET","POST"]
     }
 });
 
-/* =========================
-   Static files (프론트)
-========================= */
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname,"public")));
+app.use(express.json());
 
 /* =========================
-   users store
+   Users
 ========================= */
-let users = {};
-let serverPassword = null;
-let hostname = null;
+
+const users={};
+const USER_DB = "users.json";
+const BLACKLIST_DB = "blacklist.json";
+
+if(!fs.existsSync(BLACKLIST_DB)){
+    fs.writeFileSync(BLACKLIST_DB,"[]");
+}
+if(!fs.existsSync(USER_DB)){
+    fs.writeFileSync(USER_DB,"[]");
+}
 
 /* =========================
-   Socket logic
+   Rooms
 ========================= */
-io.on("connection", (socket) => {
 
-    console.log("user connected:", socket.id);
+const rooms={
 
-    socket.on("set nickname", (name) => {
-        users[socket.id] = name;
+    public:{
+        id:"public",
+        name:"공용 채팅방",
+        code:"public",
+        users:[]
+    }
 
-        io.emit("user list", Object.values(users));
+};
+
+/* =========================
+   Room List
+========================= */
+function loadUsers(){
+
+    return JSON.parse(
+        fs.readFileSync(USER_DB,"utf8")
+    );
+
+}
+
+function saveUsers(data){
+
+    fs.writeFileSync(
+        USER_DB,
+        JSON.stringify(data,null,2)
+    );
+
+}
+
+function loadBlacklist(){
+
+    return JSON.parse(
+        fs.readFileSync(
+            BLACKLIST_DB,
+            "utf8"
+        )
+    );
+
+}
+
+function saveBlacklist(data){
+
+    fs.writeFileSync(
+
+        BLACKLIST_DB,
+
+        JSON.stringify(
+            data,
+            null,
+            2
+        )
+
+    );
+
+}
+
+function isBlacklisted(username){
+
+    const blacklist=loadBlacklist();
+
+    return blacklist.some(
+        user=>user.username===username
+    );
+
+}
+
+function addBlacklist(username){
+
+    const blacklist=loadBlacklist();
+
+    const exists=blacklist.find(
+
+        user=>user.username===username
+
+    );
+
+    if(exists){
+
+        return{
+
+            success:false,
+            message:"이미 등록되어 있습니다."
+
+        };
+
+    }
+
+    blacklist.push({
+
+        username
+
     });
 
-    socket.on("chat message", (data) => {
-        io.emit("chat message", data);
+    saveBlacklist(
+        blacklist
+    );
+
+    return{
+
+        success:true,
+        message:"추가되었습니다."
+
+    };
+
+}
+
+function removeBlacklist(username){
+
+    let blacklist=loadBlacklist();
+
+    const exists=blacklist.find(
+
+        user=>user.username===username
+
+    );
+
+    if(!exists){
+
+        return{
+
+            success:false,
+            message:"존재하지 않습니다."
+
+        };
+
+    }
+
+    blacklist=blacklist.filter(
+
+        user=>user.username!==username
+
+    );
+
+    saveBlacklist(
+        blacklist
+    );
+
+    return{
+
+        success:true,
+        message:"삭제되었습니다."
+
+    };
+
+}
+
+function register(username,password){
+
+    const db=loadUsers();
+
+    const exists=db.find(
+        user=>user.username===username
+    );
+
+    if(exists){
+
+        return{
+
+            success:false,
+            message:"이미 존재하는 아이디입니다."
+
+        };
+
+    }
+
+    db.push({
+
+        username,
+        password
+
     });
 
-    socket.on("disconnect", () => {
+    saveUsers(db);
 
-    delete users[socket.id];
+    return{
 
-        io.emit("user list", Object.values(users));
+        success:true,
+        message:"회원가입 성공"
 
-        if(Object.keys(users).length === 0){
+    };
 
-            serverPassword = null;
-            hostname = null;
+}
 
-            fs.writeFileSync(
-                "whitelist.json",
-                JSON.stringify([], null, 2)
+function login(username,password){
+
+    const db=loadUsers();
+
+    const user=db.find(
+        user=>user.username===username
+    );
+
+    if(!user){
+
+        return{
+
+            success:false,
+            message:"존재하지 않는 아이디입니다."
+
+        };
+
+    }
+
+    if(user.password!==password){
+
+        return{
+
+            success:false,
+            message:"비밀번호가 틀렸습니다."
+
+        };
+
+    }
+
+    return{
+
+        success:true,
+
+        admin:username==="admin",
+
+        blacklisted:isBlacklisted(username),
+
+        message:"로그인 성공"
+
+    };
+
+}
+
+function emitRoomList(){
+
+    const list = Object.values(rooms)
+    .filter(room => room.id !== "public" && room.users.length > 0)
+    .map(room => ({
+        id: room.id,
+        name: room.name,
+        locked: room.code !== "",
+        count: room.users.length
+    }));
+
+    io.emit("room list", list);
+
+}
+
+/* =========================
+   User List
+========================= */
+
+function updateUserList(roomCode){
+
+    const room=rooms[roomCode];
+
+    if(!room) return;
+
+    const list=room.users
+        .map(id=>users[id]?.name)
+        .filter(Boolean);
+
+    io.to(roomCode).emit("user list",list);
+
+}
+
+/* =========================
+   Online Users
+========================= */
+
+function updateOnlineUsers(){
+
+    const list = Object.values(users)
+        .map(user => user.name)
+        .filter(Boolean);
+
+
+    io.emit(
+        "online users",
+        list
+    );
+
+}
+
+/* =========================
+   Leave Current Room
+========================= */
+
+function leaveCurrentRoom(socket){
+
+    const user=users[socket.id];
+
+    if(!user) return;
+
+    const roomCode=user.room;
+
+    if(!roomCode) return;
+
+    socket.leave(roomCode);
+
+    const room=rooms[roomCode];
+    
+    if(room){
+    
+        room.users = room.users.filter(
+            id => id !== socket.id
+        );
+    
+        updateUserList(roomCode);
+    
+        // public은 삭제하지 않음
+        if(
+            room.id !== "public" &&
+            room.users.length === 0
+        ){
+            delete rooms[room.id];
+        }
+    
+    }
+
+    user.room=null;
+
+    emitRoomList();
+
+}
+
+/* =========================
+   Connection
+========================= */
+
+io.on("connection",(socket)=>{
+
+    console.log("connected :",socket.id);
+
+    emitRoomList();
+
+    /* =========================
+       Nickname
+    ========================= */
+
+    socket.on("set nickname",(data)=>{
+
+        const username=data.username;
+        const nickname=data.nickname;
+    
+        if(isBlacklisted(username)){
+
+            socket.emit(
+                "nickname fail",
+                "차단된 계정입니다."
             );
 
-            console.log("모든 사용자가 퇴장했습니다.");
-            console.log("서버 비밀번호 초기화");
+            return;
 
         }
 
-        console.log("user disconnected:", socket.id);
+        const nickname=name.trim();
+    
+    
+        if(!nickname){
+    
+            socket.emit(
+                "nickname fail",
+                "닉네임을 입력하세요."
+            );
+    
+            return;
+    
+        }
+    
+    
+        if(nickname.length > 16){
+    
+            socket.emit(
+                "nickname fail",
+                "닉네임은 최대 16자입니다."
+            );
+    
+            return;
+    
+        }
+    
+    
+        // 중복 닉네임 검사
+        const duplicate = Object.values(users)
+            .some(user => user.name === nickname);
+    
+    
+        if(duplicate){
+    
+            socket.emit(
+                "nickname fail",
+                "이미 사용 중인 닉네임입니다."
+            );
+    
+            return;
+    
+        }
+    
+        if(isBlacklisted(socket.username)){
 
-    });
-});
+            socket.emit(
 
-/* =========================
-   register&login
-========================= */
+                "nickname fail",
 
-app.use(express.json());
+                "차단된 계정입니다."
 
-app.post("/register", (req, res) => {
+            );
 
-    const { username, password } = req.body;
+            return;
 
-    const result = register(username, password);
+        }
+    
+        users[socket.id]={
+        
+            username:socket.username,
 
-    res.json(result);
+            name:nickname,
 
-});
-
-app.post("/login", (req, res) => {
-
-    const { username, password } = req.body;
-
-    const result = login(username, password);
-
-    res.json(result);
-
-});
-
-//------------register------------//
-
-function register(username, password) {
-
-    // 현재 저장된 사용자 불러오기
-    const users = JSON.parse(
-        fs.readFileSync("users.json", "utf8")
-    );
-
-    // 아이디 중복 검사
-    const exists = users.find(
-        user => user.username === username
-    );
-
-    if (exists) {
-        return {
-            success: false,
-            message: "이미 존재하는 아이디입니다."
+            room:"public"
+        
         };
-    }
-
-    // 새 사용자 추가
-    users.push({
-        username: username,
-        password: password
+        
+        
+        socket.join("public");
+        
+        
+        rooms.public.users.push(socket.id);
+        
+        
+        updateUserList("public");
+        
+        updateOnlineUsers();
+        
+        
+        socket.emit(
+            "nickname success"
+        );
+    
+    
     });
 
-    // 파일에 다시 저장
-    fs.writeFileSync(
-        "users.json",
-        JSON.stringify(users, null, 2)
-    );
+    /* =========================
+       Create Room
+    ========================= */
 
-    return {
-        success: true,
-        message: "회원가입 성공"
-    };
-}
-//--------------login-----------------//
-function login(username, password) {
+    socket.on("create room",(data)=>{
+    
+        if(!users[socket.id]) return;
 
-    // users.json 읽기
-    const users = JSON.parse(
-        fs.readFileSync("users.json", "utf8")
-    );
+         // 블랙리스트 검사
+        if(isBlacklisted(users[socket.id].username)){
 
-    // 아이디 찾기
-    const user = users.find(
-        user => user.username === username
-    );
+            socket.emit(
+                "create fail",
+                "차단된 계정은 방을 생성할 수 없습니다."
+            );
 
-    // 아이디가 없는 경우
-    if (!user) {
-        return {
-            success: false,
-            message: "존재하지 않는 아이디입니다."
+            return;
+
+        }
+    
+        const roomName = data.name.trim();
+        const roomCode = data.code.trim();
+    
+        if(roomName.length === 0){
+            socket.emit("create fail","방 이름을 입력하세요.");
+            return;
+        }
+    
+        // 비밀번호를 입력한 경우에만 숫자 검사
+        if(roomCode !== "" && !/^\d+$/.test(roomCode)){
+            socket.emit("create fail","방 코드는 숫자만 가능합니다.");
+            return;
+        }
+    
+        // 방 ID 생성 (중복되지 않게)
+        const roomId = Date.now().toString();
+    
+        rooms[roomId] = {
+            id: roomId,
+            name: roomName,
+            code: roomCode,   // 비밀번호
+            users: []
         };
-    }
-
-    // 비밀번호 확인
-    if (user.password !== password) {
-        return {
-            success: false,
-            message: "비밀번호가 틀렸습니다."
-        };
-    }
-
-    // 로그인 성공
-    return {
-        success: true,
-        message: "로그인 성공"
-    };
-}
-
-//-----------FirstOnline-----------//
-
-function sethost(host, password) {
-
-    console.log("sethost 호출됨");
-    console.log("host =", host);
-    console.log("password =", password);
-
-    hostname = host;
-    serverPassword = password;
-
-    console.log("호스트:", hostname);
-    console.log("서버 비밀번호:", serverPassword);
-
-    return {
-        success: true,
-        message: "호스트 설정 완료"
-    };
-}
-
-function isHost(username){
-    return username === hostname;
-}
-
-app.get("/is-first-user", (req, res) => {
-
-    const first = Object.keys(users).length === 0;
-
-    res.json({
-        first: first
+    
+        emitRoomList();
+    
+        socket.emit("room created", roomId);
+    
     });
 
-});
+    /* =========================
+       Join Room
+    ========================= */
 
-app.post("/sethost", (req, res) => {
-    console.log(req.body);
-    const { host, password } = req.body;
-    const result = sethost(host, password);
-    res.json(result);
-});
+    socket.on("join room",(data)=>{
+    
+        if(!users[socket.id]) return;
 
-app.post("/is-host", (req, res) => {
-    const { username } = req.body;
+        // 블랙리스트 검사
+        if(isBlacklisted(users[socket.id].username)){
 
-    console.log("현재 사용자:", username);
-    console.log("호스트:", hostname);
+            socket.emit(
+                "join fail",
+                "차단된 계정은 방에 입장할 수 없습니다."
+            );
 
-    res.json({
-        isHost: username === hostname
-    });
+            return;
 
-});
+        }
 
-//-------------bringPassword-----------//
-
-app.post("/check-server-password", (req, res) => {
-
-    const { password } = req.body;
-
-    if(password === serverPassword){
-        res.json({
-            success: true
+        const room = rooms[data.id];
+    
+        if(!room){
+            socket.emit("join fail");
+            return;
+        }
+    
+        // 비밀번호가 있는 방만 검사
+        if(room.code !== "" && room.code !== data.code){
+            socket.emit("join fail");
+            return;
+        }
+    
+        leaveCurrentRoom(socket);
+    
+        socket.join(room.id);
+    
+        users[socket.id].room = room.id;
+    
+        room.users.push(socket.id);
+    
+        updateUserList(room.id);
+    
+        emitRoomList();
+    
+        socket.emit("join success",{
+            name: room.name,
+            code: room.id
         });
-    }else{
-        res.json({
-            success: false,
-            message: "비밀번호가 틀렸습니다."
-        });
-    }
-});
-
-function check_server_password(password) {
-    if (password === serverPassword) {
-        return {
-            success: true
-        };
-    }
-
-    return {
-        success: false,
-        message: "서버 비밀번호가 틀렸습니다."
-    };
-}
-
-/* =========================
-          whitelist
-========================= */
-
-app.post("/PlusWhitelist", (req, res) => {
-
-    const { NWL } = req.body;
-
-    const result = PlusWhitelist(NWL);
-
-    res.json(result);
-
-});
-
-function PlusWhitelist(NWL){
-
-    // 현재 저장된 사용자 불러오기
-    const whitelist = JSON.parse(
-        fs.readFileSync("whitelist.json", "utf8")
-    );
-
-    // 아이디 중복 검사
-    const exists = whitelist.find(
-        whitelist => whitelist.NWL === NWL
-    );
-
-    if (exists) {
-        return {
-            success: false,
-            message: "이미 존재하는 아이디입니다."
-        };
-    }
-
-    // 새 사용자 추가
-    whitelist.push({
-        NWL: NWL
+    
     });
 
-    // 파일에 다시 저장
-    fs.writeFileSync(
-        "whitelist.json",
-        JSON.stringify(whitelist, null, 2)
-    );
+    /* =========================
+       Leave Room
+    ========================= */
 
-    return {
-        success: true,
-        message: "추가 성공"
-    };
-}
+    socket.on("leave room",()=>{
 
-function MinusWhitelist(NWL) {
+        if(!users[socket.id]) return;
 
-    // 화이트리스트 읽기
-    let whitelist = JSON.parse(
-        fs.readFileSync("whitelist.json", "utf8")
-    );
+        leaveCurrentRoom(socket);
 
-    // 삭제할 사용자가 있는지 확인
-    const exists = whitelist.find(
-        whitelist => whitelist.NWL === NWL
-    );
+    });
 
-    if (!exists) {
-        return {
-            success: false,
-            message: "존재하지 않는 아이디입니다."
-        };
+    /* =========================
+       Chat
+    ========================= */
+
+    socket.on("chat message",(data)=>{
+
+        if(!users[socket.id]) return;
+
+        const user=users[socket.id];
+
+        /* ---------- 공용 채팅 ---------- */
+
+        if(data.room==="public"){
+
+            io.to("public").emit("chat message",{
+
+                room:"public",
+                name:user.name,
+                msg:data.msg,
+                sender:socket.id
+
+            });
+
+            return;
+
+        }
+
+        /* ---------- 방 채팅 ---------- */
+
+        if(!user.room) return;
+
+        io.to(user.room).emit("chat message",{
+
+            room:user.room,
+            name:user.name,
+            msg:data.msg,
+            sender:socket.id
+
+        });
+
+    });
+
+    /* =========================
+   Whisper
+========================= */
+
+socket.on("whisper",(data)=>{
+
+    if(!users[socket.id]) return;
+
+
+    let targetId=null;
+
+
+    // 닉네임 검색
+    for(const id in users){
+
+        if(users[id].name === data.target){
+
+            targetId=id;
+            break;
+
+        }
+
     }
 
-    // 해당 사용자 제거
-    whitelist = whitelist.filter(
-        whitelist => whitelist.NWL !== NWL
-    );
 
-    // 다시 저장
-    fs.writeFileSync(
-        "whitelist.json",
-        JSON.stringify(whitelist, null, 2)
-    );
+    if(!targetId){
 
-    return {
-        success: true,
-        message: "삭제 성공"
+        socket.emit(
+            "whisper fail",
+            "해당 사용자를 찾을 수 없습니다."
+        );
+
+        return;
+
+    }
+
+
+    const sender=users[socket.id];
+
+
+    const packet={
+
+        room:users[targetId].room || "public",
+
+        name:sender.name+" → "+users[targetId].name,
+
+        msg:data.msg,
+
+        sender:socket.id,
+
+        whisper:true
+
     };
-}
 
-app.post("/MinusWhitelist", (req, res) => {
 
-    const { NWL } = req.body;
+    /*
+        상대에게만 전송
+    */
 
-    const result = MinusWhitelist(NWL);
+    io.to(targetId).emit(
+        "chat message",
+        packet
+    );
 
-    res.json(result);
+
+    /*
+        자기 자신에게도 표시
+    */
+
+    socket.emit(
+        "chat message",
+        packet
+    );
+
 
 });
 
-function GetWhitelist() {
+    /* =========================
+       Request Room List
+    ========================= */
 
-    const whitelist = JSON.parse(
-        fs.readFileSync("whitelist.json", "utf8")
-    );
+    socket.on("request rooms",()=>{
 
-    return whitelist;
-}
+        emitRoomList();
 
-app.get("/GetWhitelist", (req, res) => {
+    });
 
-    const whitelist = GetWhitelist();
+    /* =========================
+       Request Online Users
+    ========================= */
+    
+    socket.on("request online users",()=>{
+    
+        const list = Object.values(users)
+            .map(user=>user.name)
+            .filter(Boolean);
+    
+        socket.emit(
+            "online users",
+            list
+        );
+    
+    });
 
-    res.json(whitelist);
+    /* =========================
+       Disconnect
+    ========================= */
+
+socket.on("disconnect",()=>{
+    
+        console.log("disconnect :",socket.id);
+    
+        leaveCurrentRoom(socket);
+    
+        delete users[socket.id];
+    
+        updateUserList("public");
+    
+        updateOnlineUsers();
+    
+        emitRoomList();
+    
+    });
 
 });
 
 /* =========================
-   server start (중요 수정)
+   Server
 ========================= */
-server.listen(PORT, () => {
-    console.log("server running on port", PORT);
+
+app.post("/register",(req,res)=>{
+
+    const{
+
+        username,
+        password
+
+    }=req.body;
+
+    res.json(
+        register(username,password)
+    );
+
+});
+
+app.post("/login",(req,res)=>{
+
+    const{
+
+        username,
+        password
+
+    }=req.body;
+
+    res.json(
+        login(username,password)
+    );
+
+});
+
+app.get("/GetBlacklist",(req,res)=>{
+
+    res.json(
+        loadBlacklist()
+    );
+
+});
+
+app.post("/PlusBlacklist",(req,res)=>{
+
+    const{
+        username,
+        admin
+    }=req.body;
+
+    if(admin!=="admin"){
+
+        return res.json({
+
+            success:false,
+            message:"권한이 없습니다."
+
+        });
+
+    }
+
+    res.json(
+        addBlacklist(username)
+    );
+
+});
+
+app.post("/MinusBlacklist",(req,res)=>{
+
+    const{
+        username,
+        admin
+    }=req.body;
+
+    if(admin!=="admin"){
+
+        return res.json({
+
+            success:false,
+            message:"권한이 없습니다."
+
+        });
+
+    }
+
+    res.json(
+        removeBlacklist(username)
+    );
+
 });
