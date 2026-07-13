@@ -377,7 +377,7 @@ io.on("connection",(socket)=>{
     socket.on("set nickname",(data)=>{
 
         const username=data.username;
-        const nickname=data.nickname;
+        const nickname=data.nickname.trim();
     
         if(isBlacklisted(username)){
 
@@ -389,9 +389,6 @@ io.on("connection",(socket)=>{
             return;
 
         }
-
-        const nickname=name.trim();
-    
     
         if(!nickname){
     
