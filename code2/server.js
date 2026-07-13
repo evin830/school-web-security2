@@ -579,6 +579,10 @@ io.on("connection",(socket)=>{
 
     socket.on("chat message",(data)=>{
 
+        console.log("=== chat message 이벤트 ===");
+        console.log("socket.id :", socket.id);
+        console.log("users[socket.id] :", users[socket.id]);
+
         if(!users[socket.id]) return;
 
         const user=users[socket.id];
