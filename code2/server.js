@@ -3,6 +3,8 @@ const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -204,8 +206,6 @@ async function register(username,password){
         };
 
     }
-
-    const bcrypt=require("bcrypt");
 
     const hash=await bcrypt.hash(password,10);
 
@@ -507,8 +507,6 @@ io.on("connection",(socket)=>{
         }
     
         // 방 ID 생성 (중복되지 않게)
-        const crypto=require("crypto");
-
         const roomId=crypto.randomUUID();
     
         rooms[roomId] = {
@@ -764,7 +762,7 @@ socket.on("disconnect",()=>{
    Server
 ========================= */
 
-app.post("/register",(req,res)=>{
+app.post("/register",async(req,res)=>{
 
     const{
 
@@ -774,12 +772,12 @@ app.post("/register",(req,res)=>{
     }=req.body;
 
     res.json(
-        register(username,password)
+        await register(username,password)
     );
 
 });
 
-app.post("/login",(req,res)=>{
+app.post("/login",async(req,res)=>{
 
     const{
 
@@ -789,7 +787,7 @@ app.post("/login",(req,res)=>{
     }=req.body;
 
     res.json(
-        login(username,password)
+        await login(username,password)
     );
 
 });
@@ -809,26 +807,17 @@ app.post("/PlusBlacklist",(req,res)=>{
         admin
     }=req.body;
 
-    socket.on("add blacklist",(data)=>{
+    if(admin!=="admin"){
 
-        const user = users[socket.id];
+        return res.json({
 
-        if(!user) return;
+            success:false,
+            message:"권한이 없습니다."
 
-        if(user.username !== "admin"){
-
-            socket.emit("blacklist fail","권한이 없습니다.");
-
-            return;
+        });
 
     }
 
-    socket.emit(
-        "blacklist success",
-        addBlacklist(data.username)
-    );
-
-});
     res.json(
         addBlacklist(username)
     );
