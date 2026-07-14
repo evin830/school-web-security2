@@ -306,7 +306,20 @@ function updateUserList(roomCode){
     if(!room) return;
 
     const list=room.users
-        .map(id=>users[id]?.name)
+        .map(id=>{
+
+            const user=users[id];
+
+            if(!user) return null;
+
+            return{
+
+                nickname:user.name,
+                username:user.username
+
+            };
+
+        })
         .filter(Boolean);
 
     io.to(roomCode).emit("user list",list);
