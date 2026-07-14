@@ -148,27 +148,6 @@ function addBlacklist(username){
 
 }
 
-function addBlacklistByNickname(nickname){
-
-    const user = Object.values(users).find(
-        u => u.name === nickname
-    );
-
-    if(!user){
-
-        return{
-
-            success:false,
-            message:"해당 닉네임의 사용자가 없습니다."
-
-        };
-
-    }
-
-    return addBlacklist(user.username);
-
-}
-
 function removeBlacklist(username){
 
     let blacklist=loadBlacklist();
@@ -824,10 +803,8 @@ app.get("/GetBlacklist",(req,res)=>{
 app.post("/PlusBlacklist",(req,res)=>{
 
     const{
-
-        nickname,
+        username,
         admin
-
     }=req.body;
 
     if(admin!=="admin"){
@@ -842,9 +819,7 @@ app.post("/PlusBlacklist",(req,res)=>{
     }
 
     res.json(
-
-        addBlacklistByNickname(nickname)
-
+        addBlacklist(username)
     );
 
 });
