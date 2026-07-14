@@ -52,6 +52,52 @@ const rooms={
 };
 
 /* =========================
+   Sessions (로그인 토큰)
+========================= */
+
+// token -> { username, expires }
+const sessions={};
+
+// socket.id -> username (해당 소켓이 인증한 사용자)
+const authenticatedUsers={};
+
+const SESSION_TTL_MS = 1000 * 60 * 60; // 1시간
+
+function createSession(username){
+
+    const token=crypto.randomBytes(32).toString("hex");
+
+    sessions[token]={
+
+        username,
+
+        expires:Date.now()+SESSION_TTL_MS
+
+    };
+
+    return token;
+
+}
+
+function verifySession(token){
+
+    const session=sessions[token];
+
+    if(!session) return null;
+
+    if(Date.now()>session.expires){
+
+        delete sessions[token];
+
+        return null;
+
+    }
+
+    return session.username;
+
+}
+
+/* =========================
    Room List
 ========================= */
 function loadUsers(){
@@ -266,9 +312,13 @@ async function login(username,password){
 
     }
 
+    const token=createSession(username);
+
     return{
 
         success:true,
+
+        token,
 
         admin:username==="admin",
 
@@ -397,13 +447,52 @@ io.on("connection",(socket)=>{
     emitRoomList();
 
     /* =========================
+       Login (세션 인증)
+    ========================= */
+
+    socket.on("login user",(token)=>{
+
+        const username=verifySession(token);
+
+        if(!username){
+
+            socket.emit(
+                "login user fail",
+                "인증에 실패했습니다. 다시 로그인해주세요."
+            );
+
+            return;
+
+        }
+
+        authenticatedUsers[socket.id]=username;
+
+        socket.emit("login user success");
+
+    });
+
+    /* =========================
        Nickname
     ========================= */
 
     socket.on("set nickname",(data)=>{
 
-        const username=data.username;
-        const nickname=data.nickname.trim();
+        // 클라이언트가 보낸 username은 신뢰하지 않고
+        // 서버가 인증해둔 username만 사용한다
+        const username=authenticatedUsers[socket.id];
+
+        const nickname=(data.nickname||"").trim();
+
+        if(!username){
+
+            socket.emit(
+                "nickname fail",
+                "로그인이 필요합니다."
+            );
+
+            return;
+
+        }
     
         if(isBlacklisted(username)){
 
@@ -597,6 +686,21 @@ io.on("connection",(socket)=>{
 
         leaveCurrentRoom(socket);
 
+        // 로비로 돌아왔으므로 공용 채팅방에 다시 입장시킨다
+        const user=users[socket.id];
+
+        if(!user) return;
+
+        socket.join("public");
+
+        rooms.public.users.push(socket.id);
+
+        user.room="public";
+
+        updateUserList("public");
+
+        updateOnlineUsers();
+
     });
 
     /* =========================
@@ -760,6 +864,8 @@ socket.on("disconnect",()=>{
         leaveCurrentRoom(socket);
     
         delete users[socket.id];
+
+        delete authenticatedUsers[socket.id];
     
         updateUserList("public");
     
@@ -817,8 +923,10 @@ app.post("/PlusBlacklist",(req,res)=>{
 
     const{
         username,
-        admin
+        token
     }=req.body;
+
+    const admin=verifySession(token);
 
     if(admin!=="admin"){
 
@@ -841,8 +949,10 @@ app.post("/MinusBlacklist",(req,res)=>{
 
     const{
         username,
-        admin
+        token
     }=req.body;
+
+    const admin=verifySession(token);
 
     if(admin!=="admin"){
 
