@@ -6,5 +6,9 @@
   {
     "username": "ㅁ",
     "password": "1"
+  },
+  {
+    "username": "admin",
+    "password": "password"
   }
 ]
