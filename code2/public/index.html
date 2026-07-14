@@ -1538,21 +1538,20 @@ socket.on("user list",users=>{
 
     userList.innerHTML="";
 
-    users.forEach(name=>{
+    users.forEach(user=>{
 
         const li=document.createElement("li");
 
-        li.textContent=name;
-
+        if(isAdmin()){
+            li.textContent=
+                `${user.nickname} (${user.username})`;
+        }else{
+            li.textContent=user.nickname;
+        }
         userList.appendChild(li);
-
     });
-
-    document.querySelector("#memberPanel h3").textContent=
-        `online [${users.length}]`;
-
 });
-
+    
 function toggleOnline(){
 
     console.log("toggleOnline");
