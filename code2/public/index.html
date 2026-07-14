@@ -878,7 +878,7 @@ Elements
 ========================= */
 
 let currentUser="";
-const isAdmin=()=>currentUser==="admin";
+let isAdmin=false;
 
 const nicknameModal=document.getElementById("nicknameModal");
 const nicknameInput=document.getElementById("nicknameInput");
@@ -1048,6 +1048,9 @@ loginBtn.onclick=async()=>{
     if(result.success){
 
         currentUser=loginId.value;
+
+        isAdmin = result.admin;
+
 
         if(isAdmin()){
 
@@ -1796,7 +1799,7 @@ socket.on("chat message",data=>{
     if(data.whisper){
     
         msg.style.background="#f3e8ff";
-        msg.innerHTML=message;
+        msg.textContent=message;;
     
     }else{
     
