@@ -188,7 +188,7 @@ button{
     display:none;
 
     /* 라이트 모드 배경 이미지 */
-    background-image:url("https://cdn.discordapp.com/attachments/1350416524245995533/1526426445356859412/pngtree-green-field-filled-with-grass-picture-image_3545779.png?ex=6a56fae8&is=6a55a968&hm=30c686afbb23e0df599fba33114967faf2c601880cdc58895f718c09337963c5&");
+    background-image:url("https://cdn.discordapp.com/attachments/1350416524245995533/1526453391579152425/beautiful-white-cloud-blue-sky-sea-ocean_74190-2226.png?ex=6a571400&is=6a55c280&hm=f964e0ec8cdfde0c6a005a059e6e133f8dec886295bf08481e170176fe9fbe48&");
     background-size:cover;
     background-position:center;
     background-repeat:no-repeat;
@@ -198,23 +198,6 @@ button{
 /* 다크 모드일 때 배경 이미지 교체 (body에 dark-mode 클래스가 붙음) */
 body.dark-mode #chatPage{
     background-image:url("https://cdn.discordapp.com/attachments/1350416524245995533/1526423742719463657/milky-way-night-sky-with-stars-space-background_941265-26254.png?ex=6a56f863&is=6a55a6e3&hm=54c36d13a30e56353aa89c600923f2438af13b18ee42dfad73f28f7e36f12701&");
-}
-
-/* 채팅창(박스+입력창을 감싸는 영역)을 반투명하게 */
-.chat-container{
-    background:rgba(255,255,255,0.55);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-}
-
-/* 메시지 영역도 반투명하게 (배경 비치도록) */
-.chat-box{
-    background:transparent;
-}
-
-/* 입력창 영역 - 살짝 더 진하게 해서 글씨가 잘 보이도록 */
-.input-box{
-    background:rgba(255,255,255,0.75);
 }
 
 .topBar{
@@ -294,7 +277,9 @@ body.dark-mode #chatPage{
     width:820px;
     height:500px;
     border:1px solid #ccc;
-    background:#fff;
+    background:rgba(255,255,255,0.55);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
     display:flex;
     flex-direction:column;
     overflow:hidden;
@@ -307,6 +292,7 @@ body.dark-mode #chatPage{
     display:flex;
     flex-direction:column;
     gap:14px;
+    background:transparent;
 }
 
 .message-wrapper{
@@ -338,6 +324,7 @@ body.dark-mode #chatPage{
 .input-box{
     border-top:1px solid #ccc;
     padding:10px;
+    background:rgba(255,255,255,0.75);
 }
 
 .input-box input{
