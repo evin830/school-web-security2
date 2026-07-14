@@ -228,7 +228,7 @@ async function register(username,password){
 
 }
 
-function login(username,password){
+async function login(username,password){
 
     const db=loadUsers();
 
