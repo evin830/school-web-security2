@@ -186,7 +186,7 @@ function removeBlacklist(username){
 
 }
 
-function register(username,password){
+async function register(username,password){
 
     const db=loadUsers();
 
