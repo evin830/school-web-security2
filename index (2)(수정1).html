@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>𝚃𝚘𝚙 𝚜𝚎𝚌𝚛𝚎𝚝</title>
+
+<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+
+body{
+    margin:0;
+    font-family:sans-serif;
+    background:#cfcfcf;
+}
+
+h1{
+    text-align:center;
+    font-weight:300;
+    margin-top:20px;
+}
+
+h2 {
+    font-weight:300;
+}
+
+button{
+    cursor:pointer;
+}
+
+.modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.4);
+    display:none;
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content{
+    background:#fff;
+    width:300px;
+    padding:20px;
+    border-radius:10px;
+    text-align:center;
+    box-sizing:border-box;
+}
+
+.modal-content h2{
+    margin-top:0;
+    font-weight:300;
+}
+
+.modal-content input{
+    width:100%;
+    margin-top:10px;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+.modal-content button{
+    width:100%;
+    margin-top:15px;
+    padding:10px;
+}
+
+#nicknameInput{
+    display:block;
+    width:220px;
+    margin:10px auto 0;
+    padding:8px;
+    box-sizing:border-box;
+}
+
+#nicknameModal{
+    display:flex;
+}
+
+#enterBtn{
+    display:block;
+    width:auto;
+    margin:15px auto 0;
+    padding:2px 8px;   /* 또는 4px 10px */
+}
+
+#lobbyPage{
+    width:820px;
+    margin:30px auto;
+}
+
+#createRoomBtn{
+    width:260px;
+    padding:14px;
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+    display:block;
+    margin:0 auto 20px;
+    transition:.2s;
+}
+
+#createRoomBtn:hover{
+    background:#222;
+}
+
+#roomArea{
+    background:#fff;
+    border:1px solid #ccc;
+    margin-bottom:20px;
+}
+
+#roomArea h3{
+    margin:0;
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    font-weight:300;
+}
+
+#roomList{
+    height:192px;
+    overflow-y:auto;
+}
+
+.room{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    height:48px;
+    padding:0 12px;
+    border-bottom:1px solid #eee;
+    cursor:pointer;
+    box-sizing:border-box;
+}
+
+.room:hover{
+    background:#f2f2f2;
+}
+
+.room-name{
+    font-weight:500;
+}
+
+.room-count{
+    color:#666;
+}
+
+#publicChat{
+    margin-top:20px;
+    height:180px;
+    background:#fff;
+    border:1px solid #ccc;
+    overflow-y:auto;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+.public-message{
+    margin-bottom:12px;
+}
+
+.public-name{
+    font-size:12px;
+    font-weight:bold;
+    color:#666;
+}
+
+.public-text{
+    margin-top:4px;
+}
+
+#publicInputBox{
+    background:#fff;
+    border:1px solid #ccc;
+    border-top:none;
+    padding:10px;
+}
+
+#publicInput{
+    width:100%;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+#chatPage{
+    display:none;
+}
+
+.topBar{
+    width:100%;
+    height:80px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 20px;
+    box-sizing:border-box;
+    position:relative;
+    z-index:2000;
+}
+
+.member-btn,
+#backBtn{
+    position:relative;
+    z-index:2001;
+}
+
+#currentRoom{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    margin:0;
+    font-size:28px;
+    font-weight:300;
+
+    position:absolute;
+
+    left:50%;
+    top:50%;
+
+    transform:translate(-50%, -40%);
+
+    pointer-events:none; /* 버튼 클릭 방해 방지 */
+}
+
+.member-btn{
+    position:fixed;
+    top:20px;
+    right:20px;
+
+    padding:8px 16px;
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+
+    z-index:2000;
+}
+
+#backBtn{
+    position:fixed;
+    top:20px;
+    left:20px;
+
+    padding:8px 16px;
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+
+    z-index:2000;
+}
+
+.layout{
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    padding: 20px 0;
+}
+
+.chat-container{
+    width:820px;
+    height:500px;
+    border:1px solid #ccc;
+    background:#fff;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+
+.chat-box{
+    flex:1;
+    overflow-y:auto;
+    padding:15px 15px 15px 5px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.message-wrapper{
+    display:flex;
+    flex-direction:column;
+    margin-left:12px;
+}
+
+.message-name{
+    font-size:12px;
+    color:#666;
+    font-weight:600;
+    margin-bottom:4px;
+}
+
+.message{
+    display:inline-block;
+    width:fit-content;
+    max-width:70%;
+
+    padding:10px 14px;
+    background:#e9e9e9;
+    border-radius:10px;
+
+    word-break:break-word;
+    white-space:pre-wrap;
+}
+
+.input-box{
+    border-top:1px solid #ccc;
+    padding:10px;
+}
+
+.input-box input{
+    width:100%;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+.member-panel{
+    position:fixed;
+    top:0;
+    right:-240px;
+    width:220px;
+    height:100%;
+    background:#fff;
+    border-left:1px solid #ccc;
+    box-shadow:-5px 0 15px rgba(0,0,0,.15);
+    transition:right .3s;
+    padding:20px;
+    box-sizing:border-box;
+    z-index:1000;
+}
+
+.member-panel.open{
+    right:0;
+}
+
+.member-panel h3{
+    font-weight:300;
+    border-bottom:1px solid #ddd;
+    padding-bottom:8px;
+}
+
+.member-panel ul{
+    margin:0;
+    padding:0;
+}
+
+.member-panel li{
+    list-style:none;
+    margin:8px 0;
+    font-family:monospace;
+}
+
+.member-panel li::before{
+    content:"> ";
+    color:#888;
+}
+
+.message a{
+    color:#0066cc;
+    text-decoration:underline;
+    word-break:break-all;
+}
+
+.message a:hover{
+    color:#004499;
+}
+
+#createRoomConfirm,
+#createRoomCancel,
+#joinRoomConfirm,
+#joinRoomCancel{
+    width:100%;
+    margin-top:15px;
+    padding:10px;
+}
+
+.whisper{
+    background:#f3e8ff;
+    border-left:4px solid red;
+}
+
+#onlineBtn{
+    position:fixed;
+    top:20px;
+    right:20px;
+
+    padding:8px 16px;
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+
+    z-index:3000;
+}
+
+
+.online-panel{
+    position:fixed;
+    top:0;
+    right:-240px;
+
+    width:220px;
+    height:100%;
+
+    background:#fff;
+    border-left:1px solid #ccc;
+    box-shadow:-5px 0 15px rgba(0,0,0,.15);
+
+    transition:right .3s;
+
+    padding:20px;
+    box-sizing:border-box;
+
+    z-index:1000;
+}
+
+.online-panel ul{
+    margin:0;
+    padding:0;
+}
+
+.online-panel.open{
+    right:0;
+}
+
+
+.online-panel h3{
+    font-weight:300;
+    border-bottom:1px solid #ddd;
+    padding-bottom:8px;
+}
+
+
+.online-panel li{
+    list-style:none;
+    margin:8px 0;
+    font-family:monospace;
+}
+
+
+.online-panel li::before{
+    content:"> ";
+    color:#888;
+}
+
+#helpBtn{
+
+    position:fixed;
+
+    top:20px;
+    left:20px;
+
+    padding:8px 16px;
+
+    background:#444;
+    color:#fff;
+
+    border:none;
+    border-radius:6px;
+
+    cursor:pointer;
+
+    z-index:3000;
+
+}
+
+/* =========================
+Dark Mode
+========================= */
+
+.dark-mode{
+    background:#181818;
+    color:#eee;
+}
+
+.dark-mode .chat-container{
+    background:#242424;
+    border-color:#444;
+}
+
+.dark-mode .chat-box{
+    background:#242424;
+}
+
+.dark-mode .message{
+    background:#333;
+    color:#eee;
+}
+
+.dark-mode .message-name{
+    color:#aaa;
+}
+
+.dark-mode .input-box{
+    background:#242424;
+    border-color:#444;
+}
+
+.dark-mode .input-box input{
+    background:#333;
+    color:#fff;
+    border:1px solid #555;
+}
+
+.dark-mode .member-panel{
+    background:#222;
+    color:#fff;
+    border-color:#444;
+}
+
+.dark-mode #roomArea,
+.dark-mode #publicChat,
+.dark-mode #publicInputBox{
+    background:#242424;
+    border-color:#444;
+}
+
+.dark-mode .room:hover{
+    background:#333;
+}
+
+.dark-mode .modal-content{
+    background:#242424;
+    color:#fff;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- =========================
+로그인
+========================= -->
+
+<div id="loginModal" class="modal" style="display:flex;">
+
+    <div class="modal-content">
+
+        <h2>로그인</h2>
+
+        <input
+            id="loginId"
+            type="text"
+            placeholder="아이디">
+
+        <input
+            id="loginPw"
+            type="password"
+            placeholder="비밀번호">
+
+        <button id="loginBtn">
+            로그인
+        </button>
+
+        <button id="openRegisterBtn">
+            회원가입
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =========================
+회원가입
+========================= -->
+
+<div id="registerModal" class="modal">
+
+    <div class="modal-content">
+
+        <h2>회원가입</h2>
+
+        <input
+            id="registerId"
+            type="text"
+            placeholder="아이디">
+
+        <input
+            id="registerPw"
+            type="password"
+            placeholder="비밀번호">
+
+        <input
+            id="registerPw2"
+            type="password"
+            placeholder="비밀번호 확인">
+
+        <button id="registerBtn">
+
+            가입
+
+        </button>
+
+        <button id="closeRegisterBtn">
+
+            닫기
+
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =========================
+닉네임
+========================= -->
+
+<div id="nicknameModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h2>username</h2>
+
+        <input
+            type="text"
+            id="nicknameInput"
+            placeholder="username"
+            maxlength="16"
+        >
+
+        <button id="enterBtn">
+            enter
+        </button>
+    </div>
+</div>
+
+<!-- =========================
+로비
+========================= -->
+
+<div id="lobbyPage">
+
+<h1>index of/</h1>
+
+<button id="helpBtn">
+    도움말
+</button>
+
+<button
+    id="blacklistBtn"
+    style="display:none;"
+>
+    블랙리스트 관리
+</button>
+
+<button id="onlineBtn">
+    접속자
+</button>
+
+<button id="createRoomBtn">
++ 방 만들기
+</button>
+
+<div id="roomArea">
+
+<h3>방 목록</h3>
+
+<div id="roomList">
+
+<!-- JS -->
+
+</div>
+
+</div>
+
+<div id="publicChat">
+
+<!-- 공용 채팅 -->
+
+</div>
+
+<div id="publicInputBox">
+
+<input
+id="publicInput"
+type="text"
+placeholder="메시지 입력">
+
+</div>
+
+</div>
+
+<div id="onlinePanel" class="online-panel">
+
+<h3>online</h3>
+
+<ul id="onlineList"></ul>
+
+</div>
+
+<!-- =========================
+채팅 페이지
+========================= -->
+
+<div id="chatPage">
+
+<div class="topBar">
+    <button id="backBtn">뒤로가기</button>
+
+    <div id="currentRoom">채팅방</div>
+
+    <button class="member-btn" onclick="toggleMembers()">
+        멤버
+    </button>
+</div>
+
+<div class="layout">
+
+<div class="chat-container">
+
+<div
+class="chat-box"
+id="chatBox">
+</div>
+
+<div class="input-box">
+
+<input
+id="input"
+type="text"
+placeholder="메시지 입력">
+
+</div>
+
+</div>
+
+<div
+id="memberPanel"
+class="member-panel">
+
+<h3>online</h3>
+
+<ul id="userList"></ul>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- =========================
+방 만들기
+========================= -->
+
+<div id="createRoomModal" class="modal">
+    <div class="modal-content">
+        <h2>방 만들기</h2>
+
+        <input
+            id="roomNameInput"
+            type="text"
+            maxlength="20"
+            placeholder="방 이름">
+
+        <input
+            id="roomCodeInput"
+            type="password"
+            maxlength="8"
+            placeholder="방 코드(숫자만)">
+
+        <button id="createRoomConfirm">
+            만들기
+        </button>
+
+        <button id="createRoomCancel">
+            취소
+        </button>
+    </div>
+</div>
+
+<!-- =========================
+방 입장
+========================= -->
+
+<div id="joinRoomModal" class="modal">
+    <div class="modal-content">
+
+        <h2 id="joinRoomTitle">
+            방 입장
+        </h2>
+
+        <input
+            id="joinRoomCode"
+            type="password"
+            maxlength="8"
+            placeholder="방 코드">
+
+        <button id="joinRoomConfirm">
+            입장
+        </button>
+
+        <button id="joinRoomCancel">
+            취소
+        </button>
+
+    </div>
+</div>
+
+<div id="helpModal" class="modal">
+
+    <div class="modal-content">
+
+        <h2>도움말</h2>
+
+        <p>
+            <b>방 만들기</b><br>
+            방 코드를 입력하지 않으면 누구나 입장할 수 있는 공개방으로 생성됩니다.
+        </p>
+
+        <p>
+            <b>귓속말</b><br>
+            /w [닉네임] {내용 형식} 으로 입력하면 특정 사용자에게 귓속말을 보낼 수 있습니다.
+        </p>
+
+        <button id="helpClose">
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =========================
+블랙리스트 관리
+========================= -->
+
+<div id="blacklistModal" class="modal" style="display:none;">
+
+    <div class="modal-content">
+
+        <h2>블랙리스트 관리</h2>
+
+        <input
+            id="blacklistInput"
+            placeholder="차단할 아이디">
+
+        <button id="addBlacklist">
+            추가
+        </button>
+
+        <button id="removeBlacklist">
+            삭제
+        </button>
+
+        <hr>
+
+        <ul id="blacklistList"></ul>
+
+        <button id="closeBlacklist">
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+const socket=io();
+const SECRET_KEY="my-secret-key";
+
+let nickname="";
+let joined=false;
+let currentRoom="public";
+let memberOpen=false;
+let selectedRoom=null;
+
+const bannedWords=[
+    "욕설"
+];
+
+/* =========================
+Elements
+========================= */
+
+let currentUser="";
+let isAdmin=false;
+
+const nicknameModal=document.getElementById("nicknameModal");
+const nicknameInput=document.getElementById("nicknameInput");
+const enterBtn=document.getElementById("enterBtn");
+
+const lobbyPage=document.getElementById("lobbyPage");
+const chatPage=document.getElementById("chatPage");
+
+const roomList=document.getElementById("roomList");
+
+const publicChat=document.getElementById("publicChat");
+const publicInput=document.getElementById("publicInput");
+
+const chatBox=document.getElementById("chatBox");
+const input=document.getElementById("input");
+
+const currentRoomTitle=document.getElementById("currentRoom");
+
+const memberPanel=document.getElementById("memberPanel");
+const userList=document.getElementById("userList");
+
+const createRoomBtn=document.getElementById("createRoomBtn");
+
+const createRoomModal=document.getElementById("createRoomModal");
+const roomNameInput=document.getElementById("roomNameInput");
+const roomCodeInput=document.getElementById("roomCodeInput");
+const createRoomConfirm=document.getElementById("createRoomConfirm");
+const createRoomCancel=document.getElementById("createRoomCancel");
+
+const joinRoomModal=document.getElementById("joinRoomModal");
+const joinRoomTitle=document.getElementById("joinRoomTitle");
+const joinRoomCode=document.getElementById("joinRoomCode");
+const joinRoomConfirm=document.getElementById("joinRoomConfirm");
+const joinRoomCancel=document.getElementById("joinRoomCancel");
+
+const backBtn=document.getElementById("backBtn");
+    
+const onlineBtn=document.getElementById("onlineBtn");
+const onlinePanel=document.getElementById("onlinePanel");
+const onlineList=document.getElementById("onlineList");
+let onlineOpen=false;
+
+const helpBtn=document.getElementById("helpBtn");
+const helpModal=document.getElementById("helpModal");
+const helpClose=document.getElementById("helpClose");
+
+const blacklistModal=document.getElementById("blacklistModal");
+
+const blacklistInput=document.getElementById("blacklistInput");
+
+const blacklistList=document.getElementById("blacklistList");
+
+const addBlacklist=document.getElementById("addBlacklist");
+
+const removeBlacklist=document.getElementById("removeBlacklist");
+
+const closeBlacklist=document.getElementById("closeBlacklist");
+
+const blacklistBtn=document.getElementById("blacklistBtn");
+const loginModal=document.getElementById("loginModal");
+const registerModal=document.getElementById("registerModal");
+
+const loginId=document.getElementById("loginId");
+const loginPw=document.getElementById("loginPw");
+
+const registerId=document.getElementById("registerId");
+const registerPw=document.getElementById("registerPw");
+const registerPw2=document.getElementById("registerPw2");
+
+const loginBtn=document.getElementById("loginBtn");
+const registerBtn=document.getElementById("registerBtn");
+
+const openRegisterBtn=document.getElementById("openRegisterBtn");
+const closeRegisterBtn=document.getElementById("closeRegisterBtn");
+
+
+/* =========================
+회원가입
+========================= */
+
+openRegisterBtn.onclick=()=>{
+
+    loginModal.style.display="none";
+
+    registerModal.style.display="flex";
+
+};
+
+closeRegisterBtn.onclick=()=>{
+
+    registerModal.style.display="none";
+
+    loginModal.style.display="flex";
+
+};
+
+registerBtn.onclick=async()=>{
+
+    if(registerPw.value!==registerPw2.value){
+
+        alert("비밀번호가 일치하지 않습니다.");
+
+        return;
+
+    }
+
+    const response=await fetch("/register",{
+
+        method:"POST",
+
+        headers:{
+
+            "Content-Type":"application/json"
+
+        },
+
+        body:JSON.stringify({
+
+            username:registerId.value,
+
+            password:registerPw.value
+
+        })
+
+    });
+
+    const result=await response.json();
+
+    alert(result.message);
+
+    if(result.success){
+
+        registerModal.style.display="none";
+
+        loginModal.style.display="flex";
+
+    }
+
+};
+
+loginBtn.onclick=async()=>{
+
+    const response=await fetch("/login",{
+
+        method:"POST",
+
+        headers:{
+
+            "Content-Type":"application/json"
+
+        },
+
+        body:JSON.stringify({
+
+            username:loginId.value,
+
+            password:loginPw.value
+
+        })
+
+    });
+
+    const result=await response.json();
+
+    alert(result.message);
+
+    if(result.success){
+
+        currentUser=loginId.value;
+
+        isAdmin = result.admin;
+
+
+        if(isAdmin()){
+
+            blacklistBtn.style.display="inline-block";
+
+        }
+
+        socket.emit(
+
+            "login user",
+
+            currentUser
+
+        );
+
+        loginModal.style.display="none";
+
+        nicknameModal.style.display="flex";
+
+    }
+
+};
+
+/* =========================
+닉네임
+========================= */
+
+document.getElementById("nicknameInput").addEventListener("keydown",e=>{
+
+    if(e.key==="Enter"){
+        setNickname();
+    }
+
+});
+
+
+document.getElementById("enterBtn").onclick=setNickname;
+
+function setNickname(){
+    const name=document
+        .getElementById("nicknameInput")
+        .value
+        .trim();
+
+    if(!name){
+        alert("닉네임을 입력하세요.");
+        return;
+    }
+
+    if(name.length>16){
+        alert("닉네임은 최대 16자입니다.");
+        return;
+    }
+
+    nickname=name;
+    // 서버에서 중복 확인 후 입장 처리
+    
+    socket.emit(
+        "set nickname",
+        {
+            username: currentUser,
+            nickname: nicknameInput.value.trim()
+        }
+    );
+
+}
+
+socket.on("nickname fail",msg=>{
+    alert(msg);
+});
+
+socket.on("nickname success",()=>{
+
+    document
+    .getElementById("nicknameModal")
+    .style.display="none";
+
+    joined=true;
+
+    socket.emit(
+        "request rooms"
+    );
+
+});
+
+/* =========================
+방 만들기
+========================= */
+
+roomNameInput.addEventListener("keydown",e=>{
+
+    if(e.key==="Enter"){
+        createRoomConfirm.click();
+    }
+
+});
+
+roomCodeInput.addEventListener("keydown",e=>{
+
+    if(e.key==="Enter"){
+        createRoomConfirm.click();
+    }
+
+});
+
+createRoomBtn.onclick=()=>{
+
+    createRoomModal.style.display="flex";
+
+    roomNameInput.focus();
+
+};
+
+createRoomCancel.onclick=()=>{
+
+    createRoomModal.style.display="none";
+
+};
+
+createRoomConfirm.onclick=()=>{
+
+    const roomName=roomNameInput.value.trim();
+    const roomCode=roomCodeInput.value.trim();
+
+    if(!roomName){
+        return alert("방 이름을 입력하세요.");
+    }
+
+    if(roomCode !== "" && !/^\d+$/.test(roomCode)){
+        return alert("방 코드는 숫자만 가능합니다.");
+    }
+
+    socket.emit("create room",{
+        name:roomName,
+        code:roomCode
+    });
+
+};
+
+socket.on("create fail",msg=>{
+
+    alert(msg);
+
+});
+
+socket.on("room created",id=>{
+
+    createRoomModal.style.display="none";
+
+    // 입력한 방 코드를 지우기 전에 저장
+    const code = roomCodeInput.value.trim();
+
+    roomNameInput.value="";
+    roomCodeInput.value="";
+
+    socket.emit("join room",{
+        id:id,
+        code:code
+    });
+
+});
+
+roomNameInput.addEventListener("keydown", e => {
+
+    if(e.key === "Tab"){
+
+        e.preventDefault(); // 기본 Tab 이동 막기
+
+        roomCodeInput.focus(); // 방 코드 칸으로 이동
+
+    }
+
+});
+
+/* =========================
+방 목록
+========================= */
+
+socket.on("room list",rooms=>{
+
+    roomList.innerHTML="";
+
+    rooms.forEach(room=>{
+
+        const div=document.createElement("div");
+
+        div.className="room";
+
+        div.innerHTML=`
+            <span class="room-name">${room.name}</span>
+            <span class="room-count">[${room.count}]</span>
+        `;
+
+        div.onclick = () => {
+        
+            // 비밀번호가 없는 방이면 바로 입장
+            if(!room.locked){
+                socket.emit("join room",{
+                    id: room.id
+                });
+                return;
+            }
+        
+            // 비밀번호 있는 방
+            selectedRoom = room;
+        
+            joinRoomTitle.textContent = room.name;
+        
+            joinRoomCode.value = "";
+        
+            joinRoomModal.style.display = "flex";
+        
+            joinRoomCode.focus();
+        
+        };
+
+        roomList.appendChild(div);
+
+    });
+
+});
+
+/* =========================
+방 입장
+========================= */
+
+joinRoomConfirm.onclick=()=>{
+
+    socket.emit("join room",{
+        id:selectedRoom.id,
+        code:joinRoomCode.value.trim()
+    });
+
+};
+
+joinRoomCancel.onclick=()=>{
+
+    joinRoomModal.style.display="none";
+
+};
+
+socket.on("join fail",()=>{
+
+    alert("방에 입장할 수 없습니다.");
+
+});
+
+socket.on("join success",room=>{
+
+    currentRoom=room.code;
+
+    currentRoomTitle.textContent=room.name;
+
+    joinRoomModal.style.display="none";
+
+    lobbyPage.style.display="none";
+
+    chatPage.style.display="block";
+
+    chatBox.innerHTML="";
+
+    input.focus();
+
+});
+
+/* =========================
+뒤로가기
+========================= */
+
+backBtn.onclick=()=>{
+
+    socket.emit("leave room");
+
+    currentRoom="public";
+
+    chatPage.style.display="none";
+
+    lobbyPage.style.display="block";
+
+    socket.emit("request rooms");
+
+};
+
+/* =========================
+공용 채팅 전송
+========================= */
+
+publicInput.addEventListener("keydown",e=>{
+
+    if(e.key!=="Enter") return;
+
+
+    const text=publicInput.value.trim();
+
+
+    if(!text) return;
+
+
+
+    // =========================
+    // 귓속말
+    // 사용법: /w 닉네임 내용
+    // =========================
+
+    if(text.startsWith("/w ")){
+
+        const args=text.split(" ");
+
+
+        if(args.length < 3){
+
+            alert("사용법: /w 닉네임 내용");
+
+            return;
+
+        }
+
+
+        socket.emit("whisper",{
+
+            target:args[1],
+
+            msg:CryptoJS.AES.encrypt(
+                args.slice(2).join(" "),
+                SECRET_KEY
+            ).toString()
+
+        });
+
+
+        publicInput.value="";
+
+        return;
+
+    }
+
+
+
+    // =========================
+    // 일반 공용 채팅
+    // =========================
+
+    const encrypted=CryptoJS.AES.encrypt(
+        text,
+        SECRET_KEY
+    ).toString();
+
+
+    socket.emit("chat message",{
+
+        room:"public",
+        msg:encrypted
+
+    });
+
+
+    publicInput.value="";
+
+
+});
+
+/* =========================
+방 채팅 전송
+========================= */
+
+input.addEventListener("keydown",e=>{
+
+    if(e.key!=="Enter") return;
+
+
+    const text=input.value.trim();
+
+
+    if(!text) return;
+
+
+
+    // =========================
+    // 귓속말
+    // 사용법: /w 닉네임 내용
+    // =========================
+
+    if(text.startsWith("/w ")){
+
+        const args=text.split(" ");
+
+
+        if(args.length < 3){
+
+            alert("사용법: /w 닉네임 내용");
+
+            return;
+
+        }
+
+
+        socket.emit("whisper",{
+
+            target:args[1],
+
+            msg:CryptoJS.AES.encrypt(
+                args.slice(2).join(" "),
+                SECRET_KEY
+            ).toString()
+
+        });
+
+
+        input.value="";
+
+        return;
+
+    }
+
+
+
+    // =========================
+    // 일반 채팅
+    // =========================
+
+    const encrypted=CryptoJS.AES.encrypt(
+        text,
+        SECRET_KEY
+    ).toString();
+
+
+    socket.emit("chat message",{
+
+        room:currentRoom,
+        msg:encrypted
+
+    });
+
+
+    input.value="";
+
+
+});
+
+/* =========================
+멤버 목록
+========================= */
+
+socket.on("user list",users=>{
+
+    userList.innerHTML="";
+
+    users.forEach(name=>{
+
+        const li=document.createElement("li");
+
+        li.textContent=name;
+
+        userList.appendChild(li);
+
+    });
+
+    document.querySelector("#memberPanel h3").textContent=
+        `online [${users.length}]`;
+
+});
+
+function toggleOnline(){
+
+    console.log("toggleOnline");
+
+    onlineOpen=!onlineOpen;
+
+    if(onlineOpen){
+
+        onlinePanel.classList.add("open");
+
+        socket.emit("request online users");
+
+    }else{
+
+        onlinePanel.classList.remove("open");
+
+    }
+
+}
+
+onlineBtn.onclick=toggleOnline;
+
+helpBtn.onclick=()=>{
+
+    helpModal.style.display="flex";
+
+};
+
+
+helpClose.onclick=()=>{
+
+    helpModal.style.display="none";
+
+};
+
+/* =========================
+멤버 패널
+========================= */
+
+function toggleMembers(){
+
+    memberOpen=!memberOpen;
+
+    if(memberOpen){
+        memberPanel.classList.add("open");
+    }else{
+        memberPanel.classList.remove("open");
+    }
+
+}
+
+lobbyPage.addEventListener("keydown", e => {
+
+    if(e.key !== "Tab") return;
+
+    e.preventDefault();
+
+    toggleOnline();
+
+});
+
+chatPage.addEventListener("keydown", e => {
+
+    if(e.key !== "Tab") return;
+
+    e.preventDefault();
+
+    toggleMembers();
+
+});
+
+socket.on("online users",users=>{
+
+    onlineList.innerHTML="";
+
+
+    users.forEach(name=>{
+
+        const li=document.createElement("li");
+
+        li.textContent=name;
+
+        onlineList.appendChild(li);
+
+    });
+
+
+    document.querySelector("#onlinePanel h3").textContent=
+        `online [${users.length}]`;
+
+});
+
+/* =========================
+Dark Mode
+========================= */
+
+function checkCommands(text,isMine){
+
+    const command=text.trim().toLowerCase();
+
+    if(!isMine) return;
+
+    if(command==="dark mode"){
+        document.body.classList.add("dark-mode");
+    }
+
+    if(command==="light mode"){
+        document.body.classList.remove("dark-mode");
+    }
+
+}
+
+/* =========================
+금칙어
+========================= */
+
+function censorText(text){
+
+    let result=text;
+
+    bannedWords.forEach(word=>{
+
+        const regex=new RegExp(word,"gi");
+
+        result=result.replace(
+            regex,
+            "*".repeat(word.length)
+        );
+
+    });
+
+    return result;
+
+}
+
+/* =========================
+URL 자동 링크
+========================= */
+
+function makeLinks(text){
+
+    const urlRegex=/(https?:\/\/[^\s]+)/g;
+
+    return text.replace(urlRegex,url=>{
+
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+
+    });
+
+}
+
+/* =========================
+채팅 수신 (최종)
+========================= */
+
+function sendWhisper(text){
+
+    const args=text.split(" ");
+
+    if(args.length < 3) return false;
+
+    const target=args[1];
+
+    const message=args.slice(2).join(" ");
+
+    const encrypted=CryptoJS.AES.encrypt(
+        message,
+        SECRET_KEY
+    ).toString();
+
+
+    socket.emit("whisper",{
+        target:target,
+        msg:encrypted
+    });
+
+
+    return true;
+}
+
+socket.on("chat message",data=>{
+
+    const decrypted=CryptoJS.AES.decrypt(
+        data.msg,
+        SECRET_KEY
+    ).toString(CryptoJS.enc.Utf8);
+
+    if(!decrypted) return;
+
+    const command=decrypted.trim().toLowerCase();
+
+    /* ---------- 다크모드 ---------- */
+
+    if(data.sender===socket.id){
+
+        if(command==="dark mode"){
+            document.body.classList.add("dark-mode");
+        }
+
+        if(command==="light mode"){
+            document.body.classList.remove("dark-mode");
+        }
+
+    }
+
+    /* ---------- Top Secret ---------- */
+
+    if(command==="top secret"){
+
+        document.body.style.background="#000";
+        document.body.style.color="#00ff00";
+
+        const easter=document.createElement("div");
+
+        easter.textContent="CLASSIFIED FILE OPENED";
+
+        easter.style.position="fixed";
+        easter.style.left="50%";
+        easter.style.top="50%";
+        easter.style.transform="translate(-50%,-50%)";
+        easter.style.fontSize="48px";
+        easter.style.fontFamily="monospace";
+        easter.style.color="red";
+        easter.style.textShadow="0 0 15px red";
+        easter.style.zIndex="9999";
+
+        document.body.appendChild(easter);
+
+        setTimeout(()=>{
+
+            easter.remove();
+
+            document.body.style.background="";
+
+            document.body.style.color="";
+
+        },5000);
+
+    }
+
+    const message=makeLinks(
+        censorText(decrypted)
+    );
+
+    /* ---------- 공용 ---------- */
+
+    if(data.room==="public"){
+
+        const box=document.createElement("div");
+
+        box.className="public-message";
+
+        box.innerHTML=`
+            <div class="public-name">${data.name}</div>
+            <div class="public-text">${message}</div>
+        `;
+
+        publicChat.appendChild(box);
+
+        publicChat.scrollTop=publicChat.scrollHeight;
+
+        return;
+
+    }
+
+    /* ---------- 방 ---------- */
+
+    const wrapper=document.createElement("div");
+
+    wrapper.className="message-wrapper";
+
+    const name=document.createElement("div");
+
+    name.className="message-name";
+
+    name.textContent=data.name;
+
+    const msg=document.createElement("div");
+
+    msg.className="message";
+
+    console.log(data.whisper);
+    
+    if(data.whisper){
+    
+        msg.style.background="#f3e8ff";
+        msg.textContent=message;;
+    
+    }else{
+    
+        msg.innerHTML=message;
+    
+    }
+
+    msg.innerHTML=message;
+
+    wrapper.appendChild(name);
+    wrapper.appendChild(msg);
+
+    chatBox.appendChild(wrapper);
+
+    chatBox.scrollTop=chatBox.scrollHeight;
+
+});
+
+/* =========================
+Enter로 입력창 포커스
+========================= */
+
+document.addEventListener("keydown",e=>{
+
+    if(!joined) return;
+
+    if(
+        e.key==="Enter" &&
+        document.activeElement!==input &&
+        chatPage.style.display!=="none"
+    ){
+
+        e.preventDefault();
+
+        input.focus();
+
+    }
+
+});
+
+/* =========================
+ESC로 모달 닫기
+========================= */
+
+document.addEventListener("keydown",e=>{
+
+    if(e.key!=="Escape") return;
+
+    createRoomModal.style.display="none";
+    joinRoomModal.style.display="none";
+    helpModal.style.display="none";
+
+});
+
+/* =========================
+목록 새로고침
+========================= */
+
+addBlacklist.onclick=async()=>{
+
+    await fetch("/PlusBlacklist",{
+
+        method:"POST",
+
+        headers:{
+
+            "Content-Type":"application/json"
+
+        },
+
+        body:JSON.stringify({
+
+            username:blacklistInput.value,
+
+            admin:currentUser
+
+        })
+
+    });
+
+    blacklistInput.value="";
+
+    refreshBlacklist();
+
+};
+
+removeBlacklist.onclick=async()=>{
+
+    await fetch("/MinusBlacklist",{
+
+        method:"POST",
+
+        headers:{
+
+            "Content-Type":"application/json"
+
+        },
+
+        body:JSON.stringify({
+
+            username:blacklistInput.value,
+
+            admin:currentUser
+
+        })
+
+    });
+
+    blacklistInput.value="";
+
+    refreshBlacklist();
+
+};
+
+closeBlacklist.onclick=()=>{
+
+    blacklistModal.style.display="none";
+
+};
+
+blacklistBtn.onclick=async()=>{
+
+    blacklistModal.style.display="flex";
+
+    await refreshBlacklist();
+
+};
+
+async function refreshBlacklist(){
+
+    const res=await fetch("/GetBlacklist");
+
+    const list=await res.json();
+
+    blacklistList.innerHTML="";
+
+    list.forEach(user=>{
+
+        const li=document.createElement("li");
+
+        li.textContent=user.username;
+
+        blacklistList.appendChild(li);
+
+    });
+
+}
+
+</script>
+</body>
+</html>
