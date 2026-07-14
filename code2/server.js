@@ -205,10 +205,15 @@ function register(username,password){
 
     }
 
+    const bcrypt=require("bcrypt");
+
+    const hash=await bcrypt.hash(password,10);
+
     db.push({
 
         username,
-        password
+
+        password:hash
 
     });
 
@@ -242,7 +247,15 @@ function login(username,password){
 
     }
 
-    if(user.password!==password){
+    const ok=await bcrypt.compare(
+
+        password,
+
+        user.password
+
+    );
+
+    if(!ok){
 
         return{
 
@@ -494,7 +507,9 @@ io.on("connection",(socket)=>{
         }
     
         // 방 ID 생성 (중복되지 않게)
-        const roomId = Date.now().toString();
+        const crypto=require("crypto");
+
+        const roomId=crypto.randomUUID();
     
         rooms[roomId] = {
             id: roomId,
@@ -794,17 +809,26 @@ app.post("/PlusBlacklist",(req,res)=>{
         admin
     }=req.body;
 
-    if(admin!=="admin"){
+    socket.on("add blacklist",(data)=>{
 
-        return res.json({
+        const user = users[socket.id];
 
-            success:false,
-            message:"권한이 없습니다."
+        if(!user) return;
 
-        });
+        if(user.username !== "admin"){
+
+            socket.emit("blacklist fail","권한이 없습니다.");
+
+            return;
 
     }
 
+    socket.emit(
+        "blacklist success",
+        addBlacklist(data.username)
+    );
+
+});
     res.json(
         addBlacklist(username)
     );
